@@ -2,6 +2,10 @@
 import numpy as np
 import pandas as pd
 import re
+import datasets
+from sklearn.model_selection import train_test_split
+from transformers import AutoTokenizer, AutoModel
+
 #-----------------------------------------------------
 df = pd.read_csv("../data/OGD_FakeSet.csv")
 #-----------------------------------------------------
@@ -142,3 +146,42 @@ def data_cleaning(df):
     #-----------------------------------------------------
     #print(df_extracted)
     return df_extracted
+
+def including_reversing(df):
+    #-----------------------------------------------------
+    findings = df['findings']
+    def reverse(row):
+        row = row[::-1]
+        return row
+    #-----------------------------------------------------
+    findings_reverse = findings.apply(reverse)
+    #-----------------------------------------------------
+    sentences = pd.concat([findings, findings_reverse])
+    #-----------------------------------------------------
+    sentences = sentences.to_frame()
+    #-----------------------------------------------------
+    sentences['label'] = 0
+    sentences.reset_index(drop=True, inplace=True)
+    for index in range(0,1000):
+        sentences.at[index,'label']=1
+    return sentences
+#-----------------------------------------------------
+def train_test_validation(sentences):
+    #-----------------------------------------------------
+    train, test = train_test_split(sentences,test_size=0.3,random_state=1)
+    train.reset_index(drop=True)
+    #-----------------------------------------------------
+    train, validation = train_test_split(train,test_size=0.3,random_state=1)
+    train.reset_index(drop=True)
+    #-----------------------------------------------------
+    train_dataset = datasets.Dataset.from_pandas(train)
+    test_dataset = datasets.Dataset.from_pandas(test)
+    validation_dataset = datasets.Dataset.from_pandas(validation)
+
+    #-----------------------------------------------------
+    train_dataset = train_dataset.remove_columns(["__index_level_0__"])
+    test_dataset = test_dataset.remove_columns(["__index_level_0__"])
+    validation_dataset = validation_dataset.remove_columns(["__index_level_0__"])
+    #-----------------------------------------------------
+    Dict = datasets.DatasetDict({"train":train_dataset,"test":test_dataset,"validation":validation_dataset})
+    return Dict
